@@ -1,3 +1,4 @@
+#!/bin/bash
 log_list=("../data/test/log_ok.txt")
 
 for i in ${!log_list[@]}; do
