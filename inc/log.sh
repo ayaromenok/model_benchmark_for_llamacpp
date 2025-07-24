@@ -21,7 +21,9 @@ function check_log {
     EVAL_T=`less $LOG_FILE | grep  "llama_perf_context_print:        eval time"| cut -c 46-60| cut -d "m" -f 1`
     EVAL_TS=`less $LOG_FILE | grep  "llama_perf_context_print:        eval time"| cut -c 100-120| cut -d "t" -f 1`    
     #Out of Memory/CUDA    
-    CUDA_OOM=`less $LOG_FILE | grep  "ggml_backend_cuda_buffer_type_alloc_buffer:" | cut -c 55-100 | cut -d "M" -f 1`
+    CUDA_OOM=`less $LOG_FILE | grep  "ggml_backend_cuda_buffer_type_alloc_buffer:" | cut -c 55-100 | cut -d "M" -f 1`    
+    CUDA_ALL=`echo "$CUDA+$CUDA_KV+$CUDA_CB+$CUDA_HCB" | bc`    
+    CPU_ALL=`echo "$CPU+$CPU_KV" | bc`    
 }
 
 
