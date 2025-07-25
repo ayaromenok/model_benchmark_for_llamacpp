@@ -1,5 +1,8 @@
 #!/bin/bash
 file $LOG_FILE
+CUDA=0
+CUDA_ALL=0
+CPU_ALL=0
 
 function check_log {
     MDL_NAME=`less $LOG_FILE | grep "print_info: general.name" | cut -c 32-50`
@@ -8,8 +11,8 @@ function check_log {
     MDL_TYPE=`less $LOG_FILE | grep "print_info: file type" | cut -c 27-50`
     MDL_SIZE=`less $LOG_FILE | grep  "print_info: file size" | cut -c 27-50 | cut -d "(" -f 1`
     MDL_BPW=`less $LOG_FILE | grep  "print_info: file size" | cut -c 27-50 | cut -d "(" -f 2 | cut -d ")" -f 1 `
-    NGL=`less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-30 | cut -d "/" -f 1`
-    NL=`less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-30 | cut -d "/" -f 2`
+    NGL=`less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-29 | cut -d "/" -f 1`
+    NL=`less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-29 | cut -d "/" -f 2`
     CUDA=`less $LOG_FILE | grep  "load_tensors:        CUDA0 model buffer size" | cut -c 47-60 | cut -d "M" -f 1`
     CPU=`less $LOG_FILE | grep  "load_tensors:   CPU_Mapped model buffer size" | cut -c 47-60 | cut -d "M" -f 1`
     CUDA_KV=`less $LOG_FILE | grep  "llama_kv_cache_unified:      CUDA0 KV buffer size" | cut -c 52-60 | cut -d "M" -f 1`
@@ -22,8 +25,25 @@ function check_log {
     EVAL_TS=`less $LOG_FILE | grep  "llama_perf_context_print:        eval time"| cut -c 100-120| cut -d "t" -f 1`    
     #Out of Memory/CUDA    
     CUDA_OOM=`less $LOG_FILE | grep  "ggml_backend_cuda_buffer_type_alloc_buffer:" | cut -c 55-100 | cut -d "M" -f 1`    
+    
+    #make sure that this values not empty (NGL==0 or NGL==NL)
+    if [[ -z "$CUDA" ]];    then CUDA=0;    fi
+	if [[ -z "$CUDA_KV" ]]; then CUDA_KV=0;	fi
+	if [[ -z "$CPU_KV" ]];  then CPU_KV=0;  fi	
+    
     CUDA_ALL=`echo "$CUDA+$CUDA_KV+$CUDA_CB+$CUDA_HCB" | bc`    
     CPU_ALL=`echo "$CPU+$CPU_KV" | bc`    
+    
+    #Out of Memory/CUDA
+    if ( less $LOG_FILE  | grep  "ggml_backend_cuda_buffer_type_alloc_buffer:" ); then				
+		RESULT=1
+	fi
+	
+	#All model fit to VRAM
+	if [ $NGL == $NL ]; then		
+		RESULT=1
+	fi
+
 }
 
 
@@ -34,8 +54,8 @@ function check_log_show {
     echo "MDL_TYPE" `less $LOG_FILE | grep "print_info: file type" | cut -c 27-50`
     echo "MDL_SIZE" `less $LOG_FILE | grep  "print_info: file size" | cut -c 27-50 | cut -d "(" -f 1`
     echo "MDL_BPW" `less $LOG_FILE | grep  "print_info: file size" | cut -c 27-50 | cut -d "(" -f 2 | cut -d ")" -f 1 `
-    echo "NGL" `less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-30 | cut -d "/" -f 1`
-    echo "NL " `less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-30 | cut -d "/" -f 2`
+    echo "NGL" `less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-29 | cut -d "/" -f 1`
+    echo "NL " `less $LOG_FILE | grep  "load_tensors: offloaded" | cut -c 25-29 | cut -d "/" -f 2`
     echo "CUDA" `less $LOG_FILE | grep  "load_tensors:        CUDA0 model buffer size" | cut -c 47-60 | cut -d "M" -f 1`
     echo "CPU" `less $LOG_FILE | grep  "load_tensors:   CPU_Mapped model buffer size" | cut -c 47-60 | cut -d "M" -f 1`
     echo "CUDA_KV" `less $LOG_FILE | grep  "llama_kv_cache_unified:      CUDA0 KV buffer size" | cut -c 52-60 | cut -d "M" -f 1`
@@ -46,7 +66,16 @@ function check_log_show {
     echo "PROM_TS" `less $LOG_FILE | grep  "llama_perf_context_print: prompt eval time" | cut -c 100-120| cut -d "t" -f 1`
     echo "EVAL_T" `less $LOG_FILE | grep  "llama_perf_context_print:        eval time"| cut -c 46-60| cut -d "m" -f 1`
     echo "EVAL_TS" `less $LOG_FILE | grep  "llama_perf_context_print:        eval time"| cut -c 100-120| cut -d "t" -f 1`    
-    #Out of Memory/CUDA    
+    #Out of Memory/CUDA        
     echo "CUDA_OOM" `less $LOG_FILE | grep  "ggml_backend_cuda_buffer_type_alloc_buffer:" | cut -c 55-100 | cut -d "M" -f 1`
+    
+    #make sure that this values not empty (NGL==0 or NGL==NL)
+    if [[ -z "$CUDA" ]];    then CUDA=0;    fi
+	if [[ -z "$CUDA_KV" ]]; then CUDA_KV=0;	fi
+	if [[ -z "$CPU_KV" ]];  then CPU_KV=0;  fi	
+	echo "CUDA" $CUDA
+	echo "CPU_KV" $CPU_KV
+    echo "$CUDA+$CUDA_KV+$CUDA_CB+$CUDA_HCB" | bc
+    echo "$CPU+$CPU_KV" | bc
 }
 
